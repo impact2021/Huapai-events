@@ -35,12 +35,21 @@ jQuery(document).ready(function($) {
                     }
                     
                     if (data.description) {
-                        // For TinyMCE editor
-                        if (typeof tinyMCE !== 'undefined' && tinyMCE.get('event_content')) {
-                            tinyMCE.get('event_content').setContent(data.description);
-                        } else {
-                            $('#event_content').val(data.description);
-                        }
+                        // For TinyMCE editor - try multiple times if not ready
+                        var setDescription = function(attempt) {
+                            if (typeof tinyMCE !== 'undefined' && tinyMCE.get('event_content')) {
+                                tinyMCE.get('event_content').setContent(data.description);
+                            } else if (attempt < 3) {
+                                // Retry after a short delay if TinyMCE not ready
+                                setTimeout(function() {
+                                    setDescription(attempt + 1);
+                                }, 200);
+                            } else {
+                                // Fallback to textarea
+                                $('#event_content').val(data.description);
+                            }
+                        };
+                        setDescription(0);
                     }
                     
                     if (data.image) {
@@ -49,15 +58,22 @@ jQuery(document).ready(function($) {
                     
                     if (data.date) {
                         // Convert ISO date to datetime-local format
-                        var date = new Date(data.date);
-                        if (!isNaN(date.getTime())) {
-                            var year = date.getFullYear();
-                            var month = String(date.getMonth() + 1).padStart(2, '0');
-                            var day = String(date.getDate()).padStart(2, '0');
-                            var hours = String(date.getHours()).padStart(2, '0');
-                            var minutes = String(date.getMinutes()).padStart(2, '0');
-                            var datetimeLocal = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
-                            $('#event_date').val(datetimeLocal);
+                        // Handle timezone properly by using the local time from the ISO string
+                        try {
+                            var date = new Date(data.date);
+                            if (!isNaN(date.getTime())) {
+                                // Format to datetime-local (YYYY-MM-DDTHH:MM)
+                                var year = date.getFullYear();
+                                var month = String(date.getMonth() + 1).padStart(2, '0');
+                                var day = String(date.getDate()).padStart(2, '0');
+                                var hours = String(date.getHours()).padStart(2, '0');
+                                var minutes = String(date.getMinutes()).padStart(2, '0');
+                                var datetimeLocal = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+                                $('#event_date').val(datetimeLocal);
+                            }
+                        } catch (e) {
+                            // If date parsing fails, just skip setting the date
+                            console.warn('Failed to parse date:', data.date);
                         }
                     }
                     

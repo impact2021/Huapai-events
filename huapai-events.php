@@ -135,7 +135,8 @@ function huapai_events_fetch_url_metadata($url) {
     
     // Sanitize extracted metadata for security
     $metadata['title'] = sanitize_text_field($metadata['title']);
-    $metadata['description'] = sanitize_text_field($metadata['description']);
+    // Use sanitize_textarea_field to preserve newlines in description
+    $metadata['description'] = sanitize_textarea_field($metadata['description']);
     $metadata['image'] = esc_url_raw($metadata['image']);
     $metadata['date'] = sanitize_text_field($metadata['date']);
     
