@@ -4,12 +4,24 @@
 
 ### 1. Event Management System
 - **Add Events**: Simple form interface to add new events
+- **Auto-Extract Event Data**: Automatically pull event information from URLs
 - **View Events**: Table view of all events with key information
 - **Delete Events**: One-click event removal with confirmation
 - **Edit Capability**: Database-backed system for reliable storage
 
-### 2. Facebook Integration
+### 2. URL Data Extraction (NEW)
+- **Automatic Metadata Extraction**: Fetch event details from URLs with one click
+- **Open Graph Protocol Support**: Extracts og:title, og:description, og:image
+- **Event-Specific Data**: Pulls event:start_time when available
+- **Multi-Platform Support**: Works with Facebook events and other sites using Open Graph
+- **Smart Fallbacks**: Uses standard meta tags if Open Graph is unavailable
+- **Real-time AJAX**: Fetches data without page reload
+- **Error Handling**: Clear feedback when extraction fails
+- **Manual Override**: All auto-filled fields can be edited before saving
+
+### 3. Facebook Integration
 - Direct input for Facebook event URLs
+- Automatic extraction of Facebook event details
 - Link to original Facebook event from frontend display
 - Opens in new tab for better user experience
 - Maintains connection to source event
@@ -34,11 +46,13 @@ Each event can include:
 Located at: **WordPress Admin → Huapai Events**
 
 Form includes:
-- Text input for Facebook Event URL
-- Text input for Event Title (required field)
-- Rich text editor for Event Description
-- Date/time picker for Event Date (required field)
-- URL input for Featured Image
+- Text input for Event URL (Facebook or other event pages)
+- "Fetch Event Data" button for automatic extraction
+- Real-time status messages for extraction progress
+- Text input for Event Title (required field, can be auto-filled)
+- Rich text editor for Event Description (can be auto-filled)
+- Date/time picker for Event Date (required field, can be auto-filled)
+- URL input for Featured Image (can be auto-filled)
 - Submit button to save
 
 ### Events List
@@ -165,6 +179,7 @@ Shows 3 events with newest dates first.
 - Classic Editor & Block Editor (Gutenberg)
 
 ## Future Enhancement Ideas
+- Support for more event platforms (Eventbrite, Meetup, etc.)
 - Event categories/tags
 - Search functionality
 - Calendar view
@@ -174,7 +189,7 @@ Shows 3 events with newest dates first.
 - Event registration
 - Google Maps integration
 - Social sharing buttons
-- Image upload instead of URL
+- Image upload instead of URL only
 
 ## File Structure
 ```

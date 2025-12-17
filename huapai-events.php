@@ -45,6 +45,134 @@ function huapai_events_activate() {
 register_activation_hook(__FILE__, 'huapai_events_activate');
 
 /**
+ * Fetch metadata from a given URL
+ */
+function huapai_events_fetch_url_metadata($url) {
+    // Validate URL
+    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        return array('error' => 'Invalid URL');
+    }
+    
+    // Fetch the URL content
+    $response = wp_remote_get($url, array(
+        'timeout' => 15,
+        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    ));
+    
+    if (is_wp_error($response)) {
+        return array('error' => 'Failed to fetch URL: ' . $response->get_error_message());
+    }
+    
+    $html = wp_remote_retrieve_body($response);
+    
+    if (empty($html)) {
+        return array('error' => 'No content retrieved from URL');
+    }
+    
+    // Parse Open Graph and meta tags
+    $metadata = array(
+        'title' => '',
+        'description' => '',
+        'image' => '',
+        'date' => ''
+    );
+    
+    // Use DOMDocument to parse HTML
+    libxml_use_internal_errors(true);
+    $dom = new DOMDocument();
+    // Handle UTF-8 encoding properly
+    @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
+    libxml_clear_errors();
+    
+    $xpath = new DOMXPath($dom);
+    
+    // Try to get Open Graph tags first (commonly used by Facebook)
+    $og_title = $xpath->query('//meta[@property="og:title"]/@content');
+    if ($og_title->length > 0) {
+        $metadata['title'] = $og_title->item(0)->nodeValue;
+    }
+    
+    $og_description = $xpath->query('//meta[@property="og:description"]/@content');
+    if ($og_description->length > 0) {
+        $metadata['description'] = $og_description->item(0)->nodeValue;
+    }
+    
+    $og_image = $xpath->query('//meta[@property="og:image"]/@content');
+    if ($og_image->length > 0) {
+        $metadata['image'] = $og_image->item(0)->nodeValue;
+    }
+    
+    // Try to get event-specific data
+    $event_start_time = $xpath->query('//meta[@property="event:start_time"]/@content');
+    if ($event_start_time->length > 0) {
+        $metadata['date'] = $event_start_time->item(0)->nodeValue;
+    }
+    
+    // Fallback to standard meta tags if Open Graph tags are not available
+    if (empty($metadata['title'])) {
+        $title = $xpath->query('//meta[@name="title"]/@content');
+        if ($title->length > 0) {
+            $metadata['title'] = $title->item(0)->nodeValue;
+        } else {
+            $title_tag = $xpath->query('//title');
+            if ($title_tag->length > 0) {
+                $metadata['title'] = $title_tag->item(0)->nodeValue;
+            }
+        }
+    }
+    
+    if (empty($metadata['description'])) {
+        $description = $xpath->query('//meta[@name="description"]/@content');
+        if ($description->length > 0) {
+            $metadata['description'] = $description->item(0)->nodeValue;
+        }
+    }
+    
+    // Check if we got at least some data
+    if (empty($metadata['title']) && empty($metadata['description'])) {
+        return array('error' => 'Could not extract event information from URL');
+    }
+    
+    // Sanitize extracted metadata for security
+    $metadata['title'] = sanitize_text_field($metadata['title']);
+    // Use sanitize_textarea_field to preserve newlines in description
+    $metadata['description'] = sanitize_textarea_field($metadata['description']);
+    $metadata['image'] = esc_url_raw($metadata['image']);
+    $metadata['date'] = sanitize_text_field($metadata['date']);
+    
+    return $metadata;
+}
+
+/**
+ * AJAX handler to fetch event data from URL
+ */
+function huapai_events_fetch_url_data() {
+    check_ajax_referer('huapai_fetch_url_nonce', 'nonce');
+    
+    if (!current_user_can('manage_options')) {
+        wp_send_json_error(array('message' => 'Unauthorized'));
+        return;
+    }
+    
+    $url = isset($_POST['url']) ? esc_url_raw($_POST['url']) : '';
+    
+    if (empty($url)) {
+        wp_send_json_error(array('message' => 'No URL provided'));
+        return;
+    }
+    
+    $metadata = huapai_events_fetch_url_metadata($url);
+    
+    if (isset($metadata['error'])) {
+        wp_send_json_error(array('message' => $metadata['error']));
+        return;
+    }
+    
+    wp_send_json_success($metadata);
+}
+add_action('wp_ajax_huapai_fetch_url_data', 'huapai_events_fetch_url_data');
+
+/**
  * Add admin menu
  */
 function huapai_events_admin_menu() {
@@ -114,10 +242,13 @@ function huapai_events_admin_page() {
             
             <table class="form-table">
                 <tr>
-                    <th scope="row"><label for="fb_event_url">Facebook Event URL</label></th>
+                    <th scope="row"><label for="fb_event_url">Event URL</label></th>
                     <td>
-                        <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" placeholder="https://facebook.com/events/...">
-                        <p class="description">Optional: Link to the Facebook event</p>
+                        <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" placeholder="https://facebook.com/events/..." style="margin-bottom: 10px;">
+                        <br>
+                        <button type="button" id="huapai_fetch_event_data" class="button button-secondary">Fetch Event Data</button>
+                        <p class="description">Enter a Facebook event URL (or other event page URL) and click "Fetch Event Data" to automatically fill in the details below.</p>
+                        <div id="huapai_fetch_status"></div>
                     </td>
                 </tr>
                 <tr>
@@ -285,11 +416,18 @@ function huapai_events_enqueue_styles() {
 add_action('wp_enqueue_scripts', 'huapai_events_enqueue_styles');
 
 /**
- * Enqueue admin styles
+ * Enqueue admin styles and scripts
  */
 function huapai_events_admin_styles($hook) {
     if ($hook === 'toplevel_page_huapai-events') {
         wp_enqueue_style('huapai-events-admin-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events-admin.css', array(), HUAPAI_EVENTS_VERSION);
+        wp_enqueue_script('huapai-events-admin-script', HUAPAI_EVENTS_PLUGIN_URL . 'assets/js/huapai-events-admin.js', array('jquery'), HUAPAI_EVENTS_VERSION, true);
+        
+        // Pass AJAX URL and nonce to JavaScript
+        wp_localize_script('huapai-events-admin-script', 'huapaiEventsAdmin', array(
+            'ajaxurl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('huapai_fetch_url_nonce')
+        ));
     }
 }
 add_action('admin_enqueue_scripts', 'huapai_events_admin_styles');
