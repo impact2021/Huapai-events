@@ -87,7 +87,12 @@ jQuery(document).ready(function($) {
                 var errorMessage = 'Failed to fetch event data';
                 
                 if (xhr.status === 0) {
-                    errorMessage = 'Network error: Unable to connect. Please check your internet connection.';
+                    // Check if we have a specific error message (like 'timeout')
+                    if (error && error !== 'error') {
+                        errorMessage = 'Error: ' + error;
+                    } else {
+                        errorMessage = 'Network error: Unable to connect. Please check your internet connection.';
+                    }
                 } else if (xhr.status === 404) {
                     errorMessage = 'Error 404: The requested resource was not found.';
                 } else if (xhr.status === 500) {
