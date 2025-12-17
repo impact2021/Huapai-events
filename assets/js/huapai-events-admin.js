@@ -92,6 +92,11 @@ jQuery(document).ready(function($) {
                     return err && err !== 'error';
                 };
                 
+                // Helper function to build generic error message with status
+                var buildStatusError = function() {
+                    return 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                };
+                
                 if (xhr.status === 0) {
                     // Network connectivity issue or request was aborted
                     if (isMeaningfulError(error)) {
@@ -113,16 +118,16 @@ jQuery(document).ready(function($) {
                             // Use the server error message (will be safely inserted as text)
                             errorMessage = response.data.message;
                         } else {
-                            errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                            errorMessage = buildStatusError();
                         }
                     } catch (e) {
                         // If parsing fails, use status text
-                        errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                        errorMessage = buildStatusError();
                     }
                 } else if (isMeaningfulError(error)) {
                     errorMessage = 'Error: ' + error;
                 } else if (xhr.status) {
-                    errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                    errorMessage = buildStatusError();
                 }
                 
                 // Use .text() to safely insert the error message and prevent XSS
