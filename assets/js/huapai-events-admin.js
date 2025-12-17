@@ -84,10 +84,11 @@ jQuery(document).ready(function($) {
             },
             error: function(xhr, status, error) {
                 // Build a more informative error message
+                // Priority: specific HTTP errors > JSON response errors > generic errors
                 var errorMessage = 'Failed to fetch event data';
                 
                 if (xhr.status === 0) {
-                    // Check if we have a specific error message (like 'timeout')
+                    // Network connectivity issue or request was aborted
                     if (error && error !== 'error') {
                         errorMessage = 'Error: ' + error;
                     } else {
@@ -104,7 +105,12 @@ jQuery(document).ready(function($) {
                     try {
                         var response = JSON.parse(xhr.responseText);
                         if (response.data && response.data.message) {
-                            errorMessage = response.data.message;
+                            // Sanitize the error message to prevent XSS
+                            var tempDiv = document.createElement('div');
+                            tempDiv.textContent = response.data.message;
+                            errorMessage = tempDiv.innerHTML;
+                        } else {
+                            errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
                         }
                     } catch (e) {
                         // If parsing fails, use status text
