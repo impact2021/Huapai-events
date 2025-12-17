@@ -87,9 +87,14 @@ jQuery(document).ready(function($) {
                 // Priority: specific HTTP errors > JSON response errors > generic errors
                 var errorMessage = 'Failed to fetch event data';
                 
+                // Helper function to check if error message is meaningful
+                var isMeaningfulError = function(err) {
+                    return err && err !== 'error';
+                };
+                
                 if (xhr.status === 0) {
                     // Network connectivity issue or request was aborted
-                    if (error && error !== 'error') {
+                    if (isMeaningfulError(error)) {
                         errorMessage = 'Error: ' + error;
                     } else {
                         errorMessage = 'Network error: Unable to connect. Please check your internet connection.';
@@ -105,10 +110,8 @@ jQuery(document).ready(function($) {
                     try {
                         var response = JSON.parse(xhr.responseText);
                         if (response.data && response.data.message) {
-                            // Sanitize the error message to prevent XSS
-                            var tempDiv = document.createElement('div');
-                            tempDiv.textContent = response.data.message;
-                            errorMessage = tempDiv.innerHTML;
+                            // Use the server error message (will be safely inserted as text)
+                            errorMessage = response.data.message;
                         } else {
                             errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
                         }
@@ -116,13 +119,14 @@ jQuery(document).ready(function($) {
                         // If parsing fails, use status text
                         errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
                     }
-                } else if (error && error !== 'error') {
+                } else if (isMeaningfulError(error)) {
                     errorMessage = 'Error: ' + error;
                 } else if (xhr.status) {
                     errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
                 }
                 
-                statusDiv.html('<div class="notice notice-error"><p>' + errorMessage + '</p></div>');
+                // Use .text() to safely insert the error message and prevent XSS
+                statusDiv.html('<div class="notice notice-error"><p></p></div>').find('p').text(errorMessage);
             },
             complete: function() {
                 // Re-enable button
