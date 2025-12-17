@@ -101,7 +101,8 @@ function huapai_events_admin_page() {
     }
     
     // Get all events
-    $events = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}huapai_events ORDER BY event_date DESC"));
+    // Note: $table_name is safe - constructed from $wpdb->prefix
+    $events = $wpdb->get_results("SELECT * FROM $table_name ORDER BY event_date DESC");
     
     ?>
     <div class="wrap">
@@ -219,6 +220,8 @@ function huapai_events_shortcode($atts) {
     ), $atts);
     
     // Get upcoming events only (events in the future)
+    // Note: $table_name is safe - constructed from $wpdb->prefix (WordPress internal)
+    // Table names cannot be parameterized in SQL prepared statements
     $current_time = current_time('mysql');
     $events = $wpdb->get_results($wpdb->prepare(
         "SELECT * FROM $table_name WHERE event_date >= %s ORDER BY event_date " . sanitize_sql_orderby($atts['order']) . " LIMIT %d",
@@ -272,9 +275,11 @@ add_shortcode('huapai_events', 'huapai_events_shortcode');
  * Enqueue frontend styles
  */
 function huapai_events_enqueue_styles() {
-    $post = get_post();
-    if (($post && has_shortcode($post->post_content, 'huapai_events')) || is_admin()) {
-        wp_enqueue_style('huapai-events-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events.css', array(), HUAPAI_EVENTS_VERSION);
+    if (!is_admin()) {
+        $post = get_post();
+        if ($post && has_shortcode($post->post_content, 'huapai_events')) {
+            wp_enqueue_style('huapai-events-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events.css', array(), HUAPAI_EVENTS_VERSION);
+        }
     }
 }
 add_action('wp_enqueue_scripts', 'huapai_events_enqueue_styles');
