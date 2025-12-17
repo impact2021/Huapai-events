@@ -4,6 +4,7 @@ A WordPress plugin to manage and display events from Facebook on your WordPress 
 
 ## Features
 
+- **Automatic event data extraction** from URLs (Facebook events and other event pages)
 - Add Facebook event links with event details (title, content, date, featured image)
 - Store events in a custom database table
 - Display upcoming events using a shortcode
@@ -23,13 +24,18 @@ A WordPress plugin to manage and display events from Facebook on your WordPress 
 ### Adding Events
 
 1. Go to **Huapai Events** in your WordPress admin menu
-2. Fill in the event details:
-   - **Facebook Event URL**: (Optional) Link to the Facebook event
+2. Enter the event URL and auto-fill details:
+   - **Event URL**: Paste a Facebook event URL (or other event page URL)
+   - Click **"Fetch Event Data"** to automatically extract event information
+   - The plugin will auto-fill: title, description, date, and featured image
+3. Review and adjust the auto-filled information if needed
+4. Click "Add Event"
+
+**Manual Entry:** You can also manually fill in all fields if preferred:
    - **Event Title**: Required - The name of your event
    - **Event Description**: A description of the event
    - **Event Date**: Required - When the event will take place
    - **Featured Image URL**: Direct URL to an event image
-3. Click "Add Event"
 
 ### Displaying Events
 
