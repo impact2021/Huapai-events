@@ -27,7 +27,7 @@ function huapai_events_activate() {
     $table_name = $wpdb->prefix . 'huapai_events';
     $charset_collate = $wpdb->get_charset_collate();
 
-    $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+    $sql = "CREATE TABLE $table_name (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         title varchar(255) NOT NULL,
         content text NOT NULL,
@@ -101,7 +101,7 @@ function huapai_events_admin_page() {
     }
     
     // Get all events
-    $events = $wpdb->get_results("SELECT * FROM $table_name ORDER BY event_date DESC");
+    $events = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}huapai_events ORDER BY event_date DESC"));
     
     ?>
     <div class="wrap">
@@ -272,7 +272,8 @@ add_shortcode('huapai_events', 'huapai_events_shortcode');
  * Enqueue frontend styles
  */
 function huapai_events_enqueue_styles() {
-    if (has_shortcode(get_post()->post_content, 'huapai_events') || is_admin()) {
+    $post = get_post();
+    if (($post && has_shortcode($post->post_content, 'huapai_events')) || is_admin()) {
         wp_enqueue_style('huapai-events-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events.css', array(), HUAPAI_EVENTS_VERSION);
     }
 }
