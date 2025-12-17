@@ -18,7 +18,7 @@ jQuery(document).ready(function($) {
         
         // Make AJAX request
         $.ajax({
-            url: ajaxurl,
+            url: huapaiEventsAdmin.ajaxurl,
             type: 'POST',
             data: {
                 action: 'huapai_fetch_url_data',

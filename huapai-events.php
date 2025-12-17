@@ -56,7 +56,7 @@ function huapai_events_fetch_url_metadata($url) {
     // Fetch the URL content
     $response = wp_remote_get($url, array(
         'timeout' => 15,
-        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     ));
     
     if (is_wp_error($response)) {
@@ -80,7 +80,8 @@ function huapai_events_fetch_url_metadata($url) {
     // Use DOMDocument to parse HTML
     libxml_use_internal_errors(true);
     $dom = new DOMDocument();
-    @$dom->loadHTML($html);
+    // Handle UTF-8 encoding properly
+    @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
     libxml_clear_errors();
     
     $xpath = new DOMXPath($dom);
@@ -131,6 +132,12 @@ function huapai_events_fetch_url_metadata($url) {
     if (empty($metadata['title']) && empty($metadata['description'])) {
         return array('error' => 'Could not extract event information from URL');
     }
+    
+    // Sanitize extracted metadata for security
+    $metadata['title'] = sanitize_text_field($metadata['title']);
+    $metadata['description'] = sanitize_text_field($metadata['description']);
+    $metadata['image'] = esc_url_raw($metadata['image']);
+    $metadata['date'] = sanitize_text_field($metadata['date']);
     
     return $metadata;
 }
