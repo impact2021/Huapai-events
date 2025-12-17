@@ -83,7 +83,35 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                statusDiv.html('<div class="notice notice-error"><p>Error: ' + error + '</p></div>');
+                // Build a more informative error message
+                var errorMessage = 'Failed to fetch event data';
+                
+                if (xhr.status === 0) {
+                    errorMessage = 'Network error: Unable to connect. Please check your internet connection.';
+                } else if (xhr.status === 404) {
+                    errorMessage = 'Error 404: The requested resource was not found.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Error 500: Internal server error. Please try again later.';
+                } else if (xhr.status === 403) {
+                    errorMessage = 'Error 403: Access denied.';
+                } else if (xhr.responseText) {
+                    // Try to extract a meaningful error message from the response
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.data && response.data.message) {
+                            errorMessage = response.data.message;
+                        }
+                    } catch (e) {
+                        // If parsing fails, use status text
+                        errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                    }
+                } else if (error && error !== 'error') {
+                    errorMessage = 'Error: ' + error;
+                } else if (xhr.status) {
+                    errorMessage = 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                }
+                
+                statusDiv.html('<div class="notice notice-error"><p>' + errorMessage + '</p></div>');
             },
             complete: function() {
                 // Re-enable button
