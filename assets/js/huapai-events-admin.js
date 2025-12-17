@@ -83,7 +83,55 @@ jQuery(document).ready(function($) {
                 }
             },
             error: function(xhr, status, error) {
-                statusDiv.html('<div class="notice notice-error"><p>Error: ' + error + '</p></div>');
+                // Build a more informative error message
+                // Priority: specific HTTP errors > JSON response errors > generic errors
+                var errorMessage = 'Failed to fetch event data';
+                
+                // Helper function to check if error message is meaningful
+                var isMeaningfulError = function(err) {
+                    return err && err !== 'error';
+                };
+                
+                // Helper function to build generic error message with status
+                var buildStatusError = function() {
+                    return 'Error ' + xhr.status + ': ' + (xhr.statusText || 'Unknown error');
+                };
+                
+                if (xhr.status === 0) {
+                    // Network connectivity issue or request was aborted
+                    if (isMeaningfulError(error)) {
+                        errorMessage = 'Error: ' + error;
+                    } else {
+                        errorMessage = 'Network error: Unable to connect. Please check your internet connection.';
+                    }
+                } else if (xhr.status === 404) {
+                    errorMessage = 'Error 404: The requested resource was not found.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Error 500: Internal server error. Please try again later.';
+                } else if (xhr.status === 403) {
+                    errorMessage = 'Error 403: Access denied.';
+                } else if (xhr.responseText) {
+                    // Try to extract a meaningful error message from the response
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.data && response.data.message) {
+                            // Use the server error message (will be safely inserted as text)
+                            errorMessage = response.data.message;
+                        } else {
+                            errorMessage = buildStatusError();
+                        }
+                    } catch (e) {
+                        // If parsing fails, use status text
+                        errorMessage = buildStatusError();
+                    }
+                } else if (isMeaningfulError(error)) {
+                    errorMessage = 'Error: ' + error;
+                } else if (xhr.status) {
+                    errorMessage = buildStatusError();
+                }
+                
+                // Use .text() to safely insert the error message and prevent XSS
+                statusDiv.html('<div class="notice notice-error"><p></p></div>').find('p').text(errorMessage);
             },
             complete: function() {
                 // Re-enable button
