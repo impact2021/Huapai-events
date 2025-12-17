@@ -1,0 +1,28 @@
+/**
+ * Huapai Events Admin Styles
+ */
+
+.huapai-events-admin-page {
+    max-width: 1200px;
+}
+
+.huapai-events-admin-page h1 {
+    margin-bottom: 20px;
+}
+
+.huapai-events-admin-page h2 {
+    margin-top: 30px;
+    margin-bottom: 15px;
+}
+
+.huapai-events-admin-page .form-table th {
+    width: 200px;
+}
+
+.huapai-events-admin-page .wp-list-table img {
+    border-radius: 4px;
+}
+
+.huapai-events-admin-page .notice {
+    margin: 15px 0;
+}
