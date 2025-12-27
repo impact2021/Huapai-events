@@ -3,7 +3,7 @@
  * Plugin Name: Huapai Events
  * Plugin URI: https://github.com/impact2021/Huapai-events
  * Description: A WordPress plugin to manage Facebook events with a shortcode to display upcoming events
- * Version: 1.1.0
+ * Version: 2.0
  * Author: Impact Websites
  * License: GPL v2 or later
  * Text Domain: huapai-events
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HUAPAI_EVENTS_VERSION', '1.1.0');
+define('HUAPAI_EVENTS_VERSION', '2.0');
 define('HUAPAI_EVENTS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HUAPAI_EVENTS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -467,7 +467,12 @@ function huapai_events_shortcode($atts) {
     ob_start();
     ?>
     <div class="huapai-events-container">
-        <?php foreach ($events as $event): ?>
+        <?php foreach ($events as $event): 
+            // Strip HTML tags from content for character counting
+            $plain_content = strip_tags($event->content);
+            $is_long_description = strlen($plain_content) > 200;
+            $short_description = $is_long_description ? substr($plain_content, 0, 200) . '...' : $plain_content;
+        ?>
             <div class="huapai-event-item">
                 <?php if ($event->featured_image): ?>
                     <div class="huapai-event-image">
@@ -479,12 +484,18 @@ function huapai_events_shortcode($atts) {
                     <h3 class="huapai-event-title"><?php echo esc_html($event->title); ?></h3>
                     
                     <div class="huapai-event-date">
-                        <strong>Date:</strong> <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
+                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
                     </div>
                     
                     <?php if ($event->content): ?>
                         <div class="huapai-event-description">
-                            <?php echo wp_kses_post($event->content); ?>
+                            <?php if ($is_long_description): ?>
+                                <div class="huapai-description-short"><?php echo esc_html($short_description); ?></div>
+                                <div class="huapai-description-full" style="display: none;"><?php echo wp_kses_post($event->content); ?></div>
+                                <button class="huapai-read-more-btn" aria-expanded="false">Read More</button>
+                            <?php else: ?>
+                                <?php echo wp_kses_post($event->content); ?>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                     
@@ -510,6 +521,7 @@ function huapai_events_enqueue_styles() {
         $post = get_post();
         if ($post && has_shortcode($post->post_content, 'huapai_events')) {
             wp_enqueue_style('huapai-events-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events.css', array(), HUAPAI_EVENTS_VERSION);
+            wp_enqueue_script('huapai-events-script', HUAPAI_EVENTS_PLUGIN_URL . 'assets/js/huapai-events.js', array('jquery'), HUAPAI_EVENTS_VERSION, true);
         }
     }
 }

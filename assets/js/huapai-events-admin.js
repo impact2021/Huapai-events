@@ -1,4 +1,15 @@
 jQuery(document).ready(function($) {
+    // Set default time to 3pm (15:00) when date input changes
+    $('#event_date').on('change', function() {
+        var dateValue = $(this).val();
+        
+        // Only set default time if date is set but no time is specified (YYYY-MM-DD format only)
+        if (dateValue && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+            // Date is in format YYYY-MM-DD (no time), add default 3pm time
+            $(this).val(dateValue + 'T15:00');
+        }
+    });
+    
     // Handle tab switching
     $('.huapai-tab-button').on('click', function() {
         var tab = $(this).data('tab');
@@ -97,6 +108,12 @@ jQuery(document).ready(function($) {
                             // If date parsing fails, just skip setting the date
                             console.warn('Failed to parse date:', data.date);
                         }
+                    } else {
+                        // If no date from fetch, set default to today at 3pm
+                        var now = new Date();
+                        var dateString = now.toISOString().substring(0, 10);
+                        var datetimeLocal = dateString + 'T15:00';
+                        $('#event_date').val(datetimeLocal);
                     }
                     
                     statusDiv.html('<div class="notice notice-success"><p>Event data fetched successfully! Please review and modify if needed.</p></div>');
