@@ -22,3 +22,6 @@ Thumbs.db
 # Temporary files
 /tmp/
 *.tmp
+
+# Test files
+test-*.html

@@ -501,7 +501,7 @@ function huapai_events_shortcode($atts) {
                     
                     <?php if ($event->fb_event_url): ?>
                         <div class="huapai-event-link">
-                            <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View Event Details</a>
+                            <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View on Facebook</a>
                         </div>
                     <?php endif; ?>
                 </div>

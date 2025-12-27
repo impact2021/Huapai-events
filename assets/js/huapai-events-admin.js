@@ -3,8 +3,8 @@ jQuery(document).ready(function($) {
     $('#event_date').on('change', function() {
         var dateValue = $(this).val();
         
-        // Only set default time if date is set but no time is specified
-        if (dateValue && dateValue.length === 10) {
+        // Only set default time if date is set but no time is specified (YYYY-MM-DD format only)
+        if (dateValue && /^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
             // Date is in format YYYY-MM-DD (no time), add default 3pm time
             $(this).val(dateValue + 'T15:00');
         }
@@ -111,10 +111,8 @@ jQuery(document).ready(function($) {
                     } else {
                         // If no date from fetch, set default to today at 3pm
                         var now = new Date();
-                        var year = now.getFullYear();
-                        var month = String(now.getMonth() + 1).padStart(2, '0');
-                        var day = String(now.getDate()).padStart(2, '0');
-                        var datetimeLocal = year + '-' + month + '-' + day + 'T15:00';
+                        var dateString = now.toISOString().substring(0, 10);
+                        var datetimeLocal = dateString + 'T15:00';
                         $('#event_date').val(datetimeLocal);
                     }
                     
