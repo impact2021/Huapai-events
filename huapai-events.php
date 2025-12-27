@@ -464,37 +464,39 @@ function huapai_events_shortcode($atts) {
             $short_description = $is_long_description ? substr($plain_content, 0, 200) . '...' : $plain_content;
         ?>
             <div class="huapai-event-item">
-                <?php if ($event->featured_image): ?>
-                    <div class="huapai-event-image">
-                        <img src="<?php echo esc_url($event->featured_image); ?>" alt="<?php echo esc_attr($event->title); ?>">
+                <h3 class="huapai-event-title"><?php echo esc_html($event->title); ?></h3>
+                
+                <div class="huapai-event-columns">
+                    <?php if ($event->featured_image): ?>
+                        <div class="huapai-event-image">
+                            <img src="<?php echo esc_url($event->featured_image); ?>" alt="<?php echo esc_attr($event->title); ?>">
+                        </div>
+                    <?php endif; ?>
+                    
+                    <div class="huapai-event-content">
+                        <div class="huapai-event-date">
+                            <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
+                        </div>
+                        
+                        <?php if ($event->content): ?>
+                            <div class="huapai-event-description">
+                                <?php if ($is_long_description): ?>
+                                    <div class="huapai-description-short"><?php echo esc_html($short_description); ?></div>
+                                    <div class="huapai-description-full" style="display: none;"><?php echo wp_kses_post($event->content); ?></div>
+                                    <button class="huapai-read-more-btn" aria-expanded="false">Read More</button>
+                                <?php else: ?>
+                                    <?php echo wp_kses_post($event->content); ?>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <?php if ($event->fb_event_url): ?>
+                    <div class="huapai-event-link">
+                        <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View on Facebook</a>
                     </div>
                 <?php endif; ?>
-                
-                <div class="huapai-event-content">
-                    <h3 class="huapai-event-title"><?php echo esc_html($event->title); ?></h3>
-                    
-                    <div class="huapai-event-date">
-                        <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
-                    </div>
-                    
-                    <?php if ($event->content): ?>
-                        <div class="huapai-event-description">
-                            <?php if ($is_long_description): ?>
-                                <div class="huapai-description-short"><?php echo esc_html($short_description); ?></div>
-                                <div class="huapai-description-full" style="display: none;"><?php echo wp_kses_post($event->content); ?></div>
-                                <button class="huapai-read-more-btn" aria-expanded="false">Read More</button>
-                            <?php else: ?>
-                                <?php echo wp_kses_post($event->content); ?>
-                            <?php endif; ?>
-                        </div>
-                    <?php endif; ?>
-                    
-                    <?php if ($event->fb_event_url): ?>
-                        <div class="huapai-event-link">
-                            <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View on Facebook</a>
-                        </div>
-                    <?php endif; ?>
-                </div>
             </div>
         <?php endforeach; ?>
     </div>
