@@ -464,9 +464,11 @@ function huapai_events_shortcode($atts) {
             $short_description = $is_long_description ? substr($plain_content, 0, 200) . '...' : $plain_content;
         ?>
             <div class="huapai-event-item">
-                <h3 class="huapai-event-title"><?php echo esc_html($event->title); ?></h3>
+                <div class="huapai-event-title-row">
+                    <h3 class="huapai-event-title"><?php echo esc_html($event->title); ?></h3>
+                </div>
                 
-                <div class="huapai-event-columns">
+                <div class="huapai-event-content-row">
                     <?php if ($event->featured_image): ?>
                         <div class="huapai-event-image">
                             <img src="<?php echo esc_url($event->featured_image); ?>" alt="<?php echo esc_attr($event->title); ?>">
@@ -489,14 +491,14 @@ function huapai_events_shortcode($atts) {
                                 <?php endif; ?>
                             </div>
                         <?php endif; ?>
+                        
+                        <?php if ($event->fb_event_url): ?>
+                            <div class="huapai-event-link">
+                                <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View on Facebook</a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
-                
-                <?php if ($event->fb_event_url): ?>
-                    <div class="huapai-event-link">
-                        <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank" rel="noopener noreferrer" class="huapai-event-button">View on Facebook</a>
-                    </div>
-                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>
