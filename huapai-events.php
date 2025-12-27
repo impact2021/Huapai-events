@@ -3,7 +3,7 @@
  * Plugin Name: Huapai Events
  * Plugin URI: https://github.com/impact2021/Huapai-events
  * Description: A WordPress plugin to manage Facebook events with a shortcode to display upcoming events
- * Version: 3.0
+ * Version: 3.1
  * Author: Impact Websites
  * License: GPL v2 or later
  * Text Domain: huapai-events
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HUAPAI_EVENTS_VERSION', '3.0');
+define('HUAPAI_EVENTS_VERSION', '3.1');
 define('HUAPAI_EVENTS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HUAPAI_EVENTS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -109,7 +109,7 @@ function huapai_events_admin_page() {
     if (isset($_POST['huapai_save_event']) && check_admin_referer('huapai_save_event_action', 'huapai_save_event_nonce')) {
         $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
         $title = sanitize_text_field($_POST['event_title']);
-        $content = wp_kses_post($_POST['event_content']);
+        $content = wp_kses_post(stripslashes($_POST['event_content']));
         $event_date_only = sanitize_text_field($_POST['event_date']);
         $event_time = sanitize_text_field($_POST['event_time']);
         $featured_image = esc_url_raw($_POST['featured_image']);

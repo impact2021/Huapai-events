@@ -120,10 +120,11 @@
     border-color: #ccc;
 }
 
-/* Facebook Link - Positioned on the right */
+/* Facebook Link - Positioned in the top right */
 .huapai-event-link {
-    align-self: flex-end;
-    margin-top: 10px;
+    position: absolute;
+    top: 25px;
+    right: 30px;
 }
 
 .huapai-event-button {
@@ -191,6 +192,7 @@
     }
     
     .huapai-event-link {
+        position: static;
         align-self: center;
         text-align: center;
         margin-top: 15px;
