@@ -115,6 +115,12 @@ function huapai_events_admin_page() {
         $featured_image = esc_url_raw($_POST['featured_image']);
         $fb_event_url = esc_url_raw($_POST['fb_event_url']);
         
+        // Validate time format (HH:MM)
+        if (!empty($event_time) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $event_time)) {
+            echo '<div class="notice notice-error"><p>Invalid time format. Please use HH:MM format.</p></div>';
+            $event_time = ''; // Reset to trigger validation error below
+        }
+        
         // Combine date and time into datetime
         $event_datetime = $event_date_only . ' ' . $event_time . ':00';
         
@@ -212,8 +218,8 @@ function huapai_events_admin_page() {
         $form_title = $edit_event->title;
         $form_content = $edit_event->content;
         $datetime_parts = explode(' ', $edit_event->event_date);
-        $form_date = $datetime_parts[0];
-        $form_time = substr($datetime_parts[1], 0, 5); // Get HH:MM
+        $form_date = isset($datetime_parts[0]) ? $datetime_parts[0] : '';
+        $form_time = isset($datetime_parts[1]) ? substr($datetime_parts[1], 0, 5) : '15:00'; // Get HH:MM or default
         $form_image = $edit_event->featured_image;
         $form_fb_url = $edit_event->fb_event_url;
         $form_id = $edit_event->id;
