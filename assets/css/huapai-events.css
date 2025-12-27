@@ -47,16 +47,25 @@
 }
 
 .huapai-event-date {
-    margin-bottom: 15px;
-    padding: 10px;
-    background: #f8f9fa;
-    border-left: 4px solid #0073aa;
-    font-size: 16px;
-    color: #555;
+    margin-bottom: 20px;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #0073aa 0%, #005a87 100%);
+    border-radius: 8px;
+    font-size: 20px;
+    font-weight: 600;
+    color: #ffffff;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.3);
 }
 
 .huapai-event-date strong {
-    color: #0073aa;
+    color: #ffffff;
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
 }
 
 .huapai-event-description {
@@ -113,7 +122,12 @@
     }
     
     .huapai-event-date {
-        font-size: 14px;
+        font-size: 18px;
+        padding: 12px 15px;
+    }
+    
+    .huapai-event-date strong {
+        font-size: 12px;
     }
     
     .huapai-event-description {

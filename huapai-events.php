@@ -3,8 +3,8 @@
  * Plugin Name: Huapai Events
  * Plugin URI: https://github.com/impact2021/Huapai-events
  * Description: A WordPress plugin to manage Facebook events with a shortcode to display upcoming events
- * Version: 1.0.0
- * Author: Impact 2021
+ * Version: 1.1.0
+ * Author: Impact Websites
  * License: GPL v2 or later
  * Text Domain: huapai-events
  */
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HUAPAI_EVENTS_VERSION', '1.0.0');
+define('HUAPAI_EVENTS_VERSION', '1.1.0');
 define('HUAPAI_EVENTS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HUAPAI_EVENTS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -195,6 +195,24 @@ function huapai_events_admin_page() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'huapai_events';
     
+    // Handle event duplication
+    if (isset($_GET['action']) && $_GET['action'] === 'duplicate' && isset($_GET['event_id']) && check_admin_referer('huapai_duplicate_event_' . intval($_GET['event_id']))) {
+        $event_id = intval($_GET['event_id']);
+        // Note: $table_name is safe - constructed from $wpdb->prefix
+        $event = $wpdb->get_row($wpdb->prepare("SELECT title, content, featured_image, fb_event_url FROM $table_name WHERE id = %d", $event_id));
+        
+        if ($event) {
+            // Store the event data in a transient for the form to pick up
+            set_transient('huapai_duplicate_event_' . get_current_user_id(), array(
+                'title' => $event->title . ' (Copy)',
+                'content' => $event->content,
+                'featured_image' => $event->featured_image,
+                'fb_event_url' => $event->fb_event_url
+            ), 300); // 5 minutes
+            echo '<div class="notice notice-success"><p>Event ready to duplicate! Update the date and click Add Event.</p></div>';
+        }
+    }
+    
     // Handle form submission
     if (isset($_POST['huapai_add_event']) && check_admin_referer('huapai_add_event_action', 'huapai_add_event_nonce')) {
         $title = sanitize_text_field($_POST['event_title']);
@@ -216,6 +234,8 @@ function huapai_events_admin_page() {
                 array('%s', '%s', '%s', '%s', '%s')
             );
             echo '<div class="notice notice-success"><p>Event added successfully!</p></div>';
+            // Clear any duplicate transient
+            delete_transient('huapai_duplicate_event_' . get_current_user_id());
         } else {
             echo '<div class="notice notice-error"><p>Title and Event Date are required!</p></div>';
         }
@@ -228,111 +248,191 @@ function huapai_events_admin_page() {
         echo '<div class="notice notice-success"><p>Event deleted successfully!</p></div>';
     }
     
+    // Get duplicate event data if available
+    $duplicate_data = get_transient('huapai_duplicate_event_' . get_current_user_id());
+    
     // Get all events
     // Note: $table_name is safe - constructed from $wpdb->prefix
-    $events = $wpdb->get_results("SELECT * FROM $table_name ORDER BY event_date DESC");
+    $all_events = $wpdb->get_results("SELECT id, title, content, event_date, featured_image, fb_event_url FROM $table_name ORDER BY event_date DESC");
+    
+    // Separate into upcoming and past events
+    $current_time = current_time('mysql');
+    $upcoming_events = array();
+    $past_events = array();
+    
+    foreach ($all_events as $event) {
+        if ($event->event_date >= $current_time) {
+            $upcoming_events[] = $event;
+        } else {
+            $past_events[] = $event;
+        }
+    }
     
     ?>
-    <div class="wrap">
+    <div class="wrap huapai-admin-wrap">
         <h1>Huapai Events Manager</h1>
         
-        <h2>Add New Event</h2>
-        <form method="post" action="">
-            <?php wp_nonce_field('huapai_add_event_action', 'huapai_add_event_nonce'); ?>
-            
-            <table class="form-table">
-                <tr>
-                    <th scope="row"><label for="fb_event_url">Event URL</label></th>
-                    <td>
-                        <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" placeholder="https://facebook.com/events/..." style="margin-bottom: 10px;">
-                        <br>
-                        <button type="button" id="huapai_fetch_event_data" class="button button-secondary">Fetch Event Data</button>
-                        <p class="description">Enter a Facebook event URL (or other event page URL) and click "Fetch Event Data" to automatically fill in the details below.</p>
-                        <div id="huapai_fetch_status"></div>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="event_title">Event Title *</label></th>
-                    <td><input type="text" name="event_title" id="event_title" class="regular-text" required></td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="event_content">Event Description</label></th>
-                    <td>
-                        <?php 
-                        wp_editor('', 'event_content', array(
-                            'textarea_name' => 'event_content',
-                            'media_buttons' => false,
-                            'textarea_rows' => 5,
-                            'teeny' => true
-                        )); 
-                        ?>
-                    </td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="event_date">Event Date *</label></th>
-                    <td><input type="datetime-local" name="event_date" id="event_date" required></td>
-                </tr>
-                <tr>
-                    <th scope="row"><label for="featured_image">Featured Image URL</label></th>
-                    <td>
-                        <input type="url" name="featured_image" id="featured_image" class="regular-text" placeholder="https://...">
-                        <p class="description">Direct URL to the event image</p>
-                    </td>
-                </tr>
-            </table>
-            
-            <p class="submit">
-                <input type="submit" name="huapai_add_event" id="submit" class="button button-primary" value="Add Event">
-            </p>
-        </form>
-        
-        <h2>Existing Events</h2>
-        <p><strong>Shortcode:</strong> Use <code>[huapai_events]</code> to display upcoming events on any page or post.</p>
-        
-        <?php if ($events): ?>
-            <table class="wp-list-table widefat fixed striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Title</th>
-                        <th>Event Date</th>
-                        <th>Featured Image</th>
-                        <th>FB Event URL</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ($events as $event): ?>
+        <div class="huapai-admin-container">
+            <div class="huapai-admin-main">
+                <h2>Add New Event</h2>
+                <form method="post" action="" id="huapai-event-form">
+                    <?php wp_nonce_field('huapai_add_event_action', 'huapai_add_event_nonce'); ?>
+                    
+                    <table class="form-table">
                         <tr>
-                            <td><?php echo esc_html($event->id); ?></td>
-                            <td><?php echo esc_html($event->title); ?></td>
-                            <td><?php echo esc_html($event->event_date); ?></td>
+                            <th scope="row"><label for="fb_event_url">Event URL</label></th>
                             <td>
-                                <?php if ($event->featured_image): ?>
-                                    <img src="<?php echo esc_url($event->featured_image); ?>" style="max-width: 50px; height: auto;">
-                                <?php else: ?>
-                                    No image
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if ($event->fb_event_url): ?>
-                                    <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank">View</a>
-                                <?php else: ?>
-                                    N/A
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=delete&event_id=' . $event->id), 'huapai_delete_event_' . $event->id); ?>" 
-                                   onclick="return confirm('Are you sure you want to delete this event?');" 
-                                   class="button button-small">Delete</a>
+                                <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" 
+                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['fb_event_url']) : ''; ?>"
+                                       placeholder="https://facebook.com/events/..." style="margin-bottom: 10px;">
+                                <br>
+                                <button type="button" id="huapai_fetch_event_data" class="button button-secondary">Fetch Event Data</button>
+                                <p class="description">Enter a Facebook event URL (or other event page URL) and click "Fetch Event Data" to automatically fill in the details below.</p>
+                                <div id="huapai_fetch_status"></div>
                             </td>
                         </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
-        <?php else: ?>
-            <p>No events found. Add your first event above!</p>
-        <?php endif; ?>
+                        <tr>
+                            <th scope="row"><label for="event_title">Event Title *</label></th>
+                            <td><input type="text" name="event_title" id="event_title" class="regular-text" 
+                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['title']) : ''; ?>" required></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="event_content">Event Description</label></th>
+                            <td>
+                                <?php 
+                                wp_editor($duplicate_data ? $duplicate_data['content'] : '', 'event_content', array(
+                                    'textarea_name' => 'event_content',
+                                    'media_buttons' => false,
+                                    'textarea_rows' => 5,
+                                    'teeny' => true
+                                )); 
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="event_date">Event Date *</label></th>
+                            <td><input type="datetime-local" name="event_date" id="event_date" required></td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="featured_image">Featured Image URL</label></th>
+                            <td>
+                                <input type="url" name="featured_image" id="featured_image" class="regular-text" 
+                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['featured_image']) : ''; ?>"
+                                       placeholder="https://...">
+                                <p class="description">Direct URL to the event image</p>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <p class="submit">
+                        <input type="submit" name="huapai_add_event" id="submit" class="button button-primary" value="Add Event">
+                    </p>
+                </form>
+                
+                <h2>All Events</h2>
+                <p><strong>Shortcode:</strong> Use <code>[huapai_events]</code> to display upcoming events on any page or post.</p>
+                
+                <?php if ($all_events): ?>
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Event Date</th>
+                                <th>Featured Image</th>
+                                <th>FB Event URL</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($all_events as $event): ?>
+                                <tr>
+                                    <td><?php echo esc_html($event->id); ?></td>
+                                    <td><?php echo esc_html($event->title); ?></td>
+                                    <td><?php echo esc_html($event->event_date); ?></td>
+                                    <td>
+                                        <?php if ($event->featured_image): ?>
+                                            <img src="<?php echo esc_url($event->featured_image); ?>" style="max-width: 50px; height: auto;">
+                                        <?php else: ?>
+                                            No image
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php if ($event->fb_event_url): ?>
+                                            <a href="<?php echo esc_url($event->fb_event_url); ?>" target="_blank">View</a>
+                                        <?php else: ?>
+                                            N/A
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
+                                           class="button button-small">Duplicate</a>
+                                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=delete&event_id=' . $event->id), 'huapai_delete_event_' . $event->id); ?>" 
+                                           onclick="return confirm('Are you sure you want to delete this event?');" 
+                                           class="button button-small">Delete</a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                <?php else: ?>
+                    <p>No events found. Add your first event above!</p>
+                <?php endif; ?>
+            </div>
+            
+            <div class="huapai-admin-sidebar">
+                <div class="huapai-sidebar-widget">
+                    <h3>Quick View</h3>
+                    
+                    <div class="huapai-tabs">
+                        <button class="huapai-tab-button active" data-tab="upcoming">Upcoming Events (<?php echo count($upcoming_events); ?>)</button>
+                        <button class="huapai-tab-button" data-tab="past">Past Events (<?php echo count($past_events); ?>)</button>
+                    </div>
+                    
+                    <div id="huapai-tab-upcoming" class="huapai-tab-content active">
+                        <?php if ($upcoming_events): ?>
+                            <div class="huapai-event-list">
+                                <?php foreach ($upcoming_events as $event): ?>
+                                    <div class="huapai-sidebar-event">
+                                        <div class="huapai-sidebar-event-title"><?php echo esc_html($event->title); ?></div>
+                                        <div class="huapai-sidebar-event-date">
+                                            <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
+                                        </div>
+                                        <div class="huapai-sidebar-event-actions">
+                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
+                                               class="button button-small">Duplicate</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="huapai-sidebar-empty">No upcoming events</p>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <div id="huapai-tab-past" class="huapai-tab-content">
+                        <?php if ($past_events): ?>
+                            <div class="huapai-event-list">
+                                <?php foreach ($past_events as $event): ?>
+                                    <div class="huapai-sidebar-event">
+                                        <div class="huapai-sidebar-event-title"><?php echo esc_html($event->title); ?></div>
+                                        <div class="huapai-sidebar-event-date">
+                                            <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
+                                        </div>
+                                        <div class="huapai-sidebar-event-actions">
+                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
+                                               class="button button-small">Duplicate</a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <p class="huapai-sidebar-empty">No past events</p>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <?php
 }
