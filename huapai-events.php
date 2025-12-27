@@ -3,7 +3,7 @@
  * Plugin Name: Huapai Events
  * Plugin URI: https://github.com/impact2021/Huapai-events
  * Description: A WordPress plugin to manage Facebook events with a shortcode to display upcoming events
- * Version: 2.0
+ * Version: 3.0
  * Author: Impact Websites
  * License: GPL v2 or later
  * Text Domain: huapai-events
@@ -15,7 +15,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('HUAPAI_EVENTS_VERSION', '2.0');
+define('HUAPAI_EVENTS_VERSION', '3.0');
 define('HUAPAI_EVENTS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('HUAPAI_EVENTS_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -44,133 +44,7 @@ function huapai_events_activate() {
 }
 register_activation_hook(__FILE__, 'huapai_events_activate');
 
-/**
- * Fetch metadata from a given URL
- */
-function huapai_events_fetch_url_metadata($url) {
-    // Validate URL
-    if (!filter_var($url, FILTER_VALIDATE_URL)) {
-        return array('error' => 'Invalid URL');
-    }
-    
-    // Fetch the URL content
-    $response = wp_remote_get($url, array(
-        'timeout' => 15,
-        'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    ));
-    
-    if (is_wp_error($response)) {
-        return array('error' => 'Failed to fetch URL: ' . $response->get_error_message());
-    }
-    
-    $html = wp_remote_retrieve_body($response);
-    
-    if (empty($html)) {
-        return array('error' => 'No content retrieved from URL');
-    }
-    
-    // Parse Open Graph and meta tags
-    $metadata = array(
-        'title' => '',
-        'description' => '',
-        'image' => '',
-        'date' => ''
-    );
-    
-    // Use DOMDocument to parse HTML
-    libxml_use_internal_errors(true);
-    $dom = new DOMDocument();
-    // Handle UTF-8 encoding properly
-    @$dom->loadHTML('<?xml encoding="UTF-8">' . $html);
-    libxml_clear_errors();
-    
-    $xpath = new DOMXPath($dom);
-    
-    // Try to get Open Graph tags first (commonly used by Facebook)
-    $og_title = $xpath->query('//meta[@property="og:title"]/@content');
-    if ($og_title->length > 0) {
-        $metadata['title'] = $og_title->item(0)->nodeValue;
-    }
-    
-    $og_description = $xpath->query('//meta[@property="og:description"]/@content');
-    if ($og_description->length > 0) {
-        $metadata['description'] = $og_description->item(0)->nodeValue;
-    }
-    
-    $og_image = $xpath->query('//meta[@property="og:image"]/@content');
-    if ($og_image->length > 0) {
-        $metadata['image'] = $og_image->item(0)->nodeValue;
-    }
-    
-    // Try to get event-specific data
-    $event_start_time = $xpath->query('//meta[@property="event:start_time"]/@content');
-    if ($event_start_time->length > 0) {
-        $metadata['date'] = $event_start_time->item(0)->nodeValue;
-    }
-    
-    // Fallback to standard meta tags if Open Graph tags are not available
-    if (empty($metadata['title'])) {
-        $title = $xpath->query('//meta[@name="title"]/@content');
-        if ($title->length > 0) {
-            $metadata['title'] = $title->item(0)->nodeValue;
-        } else {
-            $title_tag = $xpath->query('//title');
-            if ($title_tag->length > 0) {
-                $metadata['title'] = $title_tag->item(0)->nodeValue;
-            }
-        }
-    }
-    
-    if (empty($metadata['description'])) {
-        $description = $xpath->query('//meta[@name="description"]/@content');
-        if ($description->length > 0) {
-            $metadata['description'] = $description->item(0)->nodeValue;
-        }
-    }
-    
-    // Check if we got at least some data
-    if (empty($metadata['title']) && empty($metadata['description'])) {
-        return array('error' => 'Could not extract event information from URL');
-    }
-    
-    // Sanitize extracted metadata for security
-    $metadata['title'] = sanitize_text_field($metadata['title']);
-    // Use sanitize_textarea_field to preserve newlines in description
-    $metadata['description'] = sanitize_textarea_field($metadata['description']);
-    $metadata['image'] = esc_url_raw($metadata['image']);
-    $metadata['date'] = sanitize_text_field($metadata['date']);
-    
-    return $metadata;
-}
 
-/**
- * AJAX handler to fetch event data from URL
- */
-function huapai_events_fetch_url_data() {
-    check_ajax_referer('huapai_fetch_url_nonce', 'nonce');
-    
-    if (!current_user_can('manage_options')) {
-        wp_send_json_error(array('message' => 'Unauthorized'));
-        return;
-    }
-    
-    $url = isset($_POST['url']) ? esc_url_raw($_POST['url']) : '';
-    
-    if (empty($url)) {
-        wp_send_json_error(array('message' => 'No URL provided'));
-        return;
-    }
-    
-    $metadata = huapai_events_fetch_url_metadata($url);
-    
-    if (isset($metadata['error'])) {
-        wp_send_json_error(array('message' => $metadata['error']));
-        return;
-    }
-    
-    wp_send_json_success($metadata);
-}
-add_action('wp_ajax_huapai_fetch_url_data', 'huapai_events_fetch_url_data');
 
 /**
  * Add admin menu
@@ -195,6 +69,24 @@ function huapai_events_admin_page() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'huapai_events';
     
+    // Show update success message if redirected after update
+    if (isset($_GET['updated']) && $_GET['updated'] === '1') {
+        echo '<div class="notice notice-success"><p>Event updated successfully!</p></div>';
+    }
+    
+    // Get edit event ID if present
+    $edit_event_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
+    $edit_event = null;
+    
+    if ($edit_event_id && isset($_GET['action']) && $_GET['action'] === 'edit' && check_admin_referer('huapai_edit_event_' . $edit_event_id)) {
+        // Note: $table_name is safe - constructed from $wpdb->prefix
+        $edit_event = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $edit_event_id));
+        if (!$edit_event) {
+            echo '<div class="notice notice-error"><p>Event not found!</p></div>';
+            $edit_event_id = 0;
+        }
+    }
+    
     // Handle event duplication
     if (isset($_GET['action']) && $_GET['action'] === 'duplicate' && isset($_GET['event_id']) && check_admin_referer('huapai_duplicate_event_' . intval($_GET['event_id']))) {
         $event_id = intval($_GET['event_id']);
@@ -213,31 +105,63 @@ function huapai_events_admin_page() {
         }
     }
     
-    // Handle form submission
-    if (isset($_POST['huapai_add_event']) && check_admin_referer('huapai_add_event_action', 'huapai_add_event_nonce')) {
+    // Handle form submission for add/edit
+    if (isset($_POST['huapai_save_event']) && check_admin_referer('huapai_save_event_action', 'huapai_save_event_nonce')) {
+        $event_id = isset($_POST['event_id']) ? intval($_POST['event_id']) : 0;
         $title = sanitize_text_field($_POST['event_title']);
         $content = wp_kses_post($_POST['event_content']);
-        $event_date = sanitize_text_field($_POST['event_date']);
+        $event_date_only = sanitize_text_field($_POST['event_date']);
+        $event_time = sanitize_text_field($_POST['event_time']);
         $featured_image = esc_url_raw($_POST['featured_image']);
         $fb_event_url = esc_url_raw($_POST['fb_event_url']);
         
-        if (!empty($title) && !empty($event_date)) {
-            $wpdb->insert(
-                $table_name,
-                array(
-                    'title' => $title,
-                    'content' => $content,
-                    'event_date' => $event_date,
-                    'featured_image' => $featured_image,
-                    'fb_event_url' => $fb_event_url
-                ),
-                array('%s', '%s', '%s', '%s', '%s')
-            );
-            echo '<div class="notice notice-success"><p>Event added successfully!</p></div>';
-            // Clear any duplicate transient
-            delete_transient('huapai_duplicate_event_' . get_current_user_id());
+        // Validate time format (HH:MM)
+        if (!empty($event_time) && !preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $event_time)) {
+            echo '<div class="notice notice-error"><p>Invalid time format. Please use HH:MM format.</p></div>';
+            $event_time = ''; // Reset to trigger validation error below
+        }
+        
+        // Combine date and time into datetime
+        $event_datetime = $event_date_only . ' ' . $event_time . ':00';
+        
+        if (!empty($title) && !empty($event_date_only) && !empty($event_time)) {
+            if ($event_id > 0) {
+                // Update existing event
+                $wpdb->update(
+                    $table_name,
+                    array(
+                        'title' => $title,
+                        'content' => $content,
+                        'event_date' => $event_datetime,
+                        'featured_image' => $featured_image,
+                        'fb_event_url' => $fb_event_url
+                    ),
+                    array('id' => $event_id),
+                    array('%s', '%s', '%s', '%s', '%s'),
+                    array('%d')
+                );
+                // Redirect to clear the edit parameters
+                wp_safe_redirect(admin_url('admin.php?page=huapai-events&updated=1'));
+                exit;
+            } else {
+                // Insert new event
+                $wpdb->insert(
+                    $table_name,
+                    array(
+                        'title' => $title,
+                        'content' => $content,
+                        'event_date' => $event_datetime,
+                        'featured_image' => $featured_image,
+                        'fb_event_url' => $fb_event_url
+                    ),
+                    array('%s', '%s', '%s', '%s', '%s')
+                );
+                echo '<div class="notice notice-success"><p>Event added successfully!</p></div>';
+                // Clear any duplicate transient
+                delete_transient('huapai_duplicate_event_' . get_current_user_id());
+            }
         } else {
-            echo '<div class="notice notice-error"><p>Title and Event Date are required!</p></div>';
+            echo '<div class="notice notice-error"><p>Title, Event Date, and Event Time are required!</p></div>';
         }
     }
     
@@ -251,21 +175,61 @@ function huapai_events_admin_page() {
     // Get duplicate event data if available
     $duplicate_data = get_transient('huapai_duplicate_event_' . get_current_user_id());
     
-    // Get all events
+    // Handle search
+    $search_query = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
+    
+    // Get all events with optional search filter
     // Note: $table_name is safe - constructed from $wpdb->prefix
-    $all_events = $wpdb->get_results("SELECT id, title, content, event_date, featured_image, fb_event_url FROM $table_name ORDER BY event_date DESC");
+    if (!empty($search_query)) {
+        $events = $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM $table_name WHERE title LIKE %s OR content LIKE %s ORDER BY event_date DESC",
+            '%' . $wpdb->esc_like($search_query) . '%',
+            '%' . $wpdb->esc_like($search_query) . '%'
+        ));
+    } else {
+        $events = $wpdb->get_results("SELECT * FROM $table_name ORDER BY event_date DESC");
+    }
     
     // Separate into upcoming and past events
     $current_time = current_time('mysql');
     $upcoming_events = array();
     $past_events = array();
     
-    foreach ($all_events as $event) {
+    foreach ($events as $event) {
         if ($event->event_date >= $current_time) {
             $upcoming_events[] = $event;
         } else {
             $past_events[] = $event;
         }
+    }
+    
+    // Prepare form values
+    $form_title = '';
+    $form_content = '';
+    $form_date = '';
+    $form_time = '15:00';
+    $form_image = '';
+    $form_fb_url = '';
+    $form_id = 0;
+    $form_heading = 'Add New Event';
+    $form_button_text = 'Add Event';
+    
+    if ($edit_event) {
+        $form_title = $edit_event->title;
+        $form_content = $edit_event->content;
+        $datetime_parts = explode(' ', $edit_event->event_date);
+        $form_date = isset($datetime_parts[0]) ? $datetime_parts[0] : '';
+        $form_time = isset($datetime_parts[1]) ? substr($datetime_parts[1], 0, 5) : '15:00'; // Get HH:MM or default
+        $form_image = $edit_event->featured_image;
+        $form_fb_url = $edit_event->fb_event_url;
+        $form_id = $edit_event->id;
+        $form_heading = 'Edit Event';
+        $form_button_text = 'Update Event';
+    } elseif ($duplicate_data) {
+        $form_title = $duplicate_data['title'];
+        $form_content = $duplicate_data['content'];
+        $form_image = $duplicate_data['featured_image'];
+        $form_fb_url = $duplicate_data['fb_event_url'];
     }
     
     ?>
@@ -274,33 +238,22 @@ function huapai_events_admin_page() {
         
         <div class="huapai-admin-container">
             <div class="huapai-admin-main">
-                <h2>Add New Event</h2>
+                <h2><?php echo esc_html($form_heading); ?></h2>
                 <form method="post" action="" id="huapai-event-form">
-                    <?php wp_nonce_field('huapai_add_event_action', 'huapai_add_event_nonce'); ?>
+                    <?php wp_nonce_field('huapai_save_event_action', 'huapai_save_event_nonce'); ?>
+                    <input type="hidden" name="event_id" value="<?php echo esc_attr($form_id); ?>">
                     
                     <table class="form-table">
                         <tr>
-                            <th scope="row"><label for="fb_event_url">Event URL</label></th>
-                            <td>
-                                <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" 
-                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['fb_event_url']) : ''; ?>"
-                                       placeholder="https://facebook.com/events/..." style="margin-bottom: 10px;">
-                                <br>
-                                <button type="button" id="huapai_fetch_event_data" class="button button-secondary">Fetch Event Data</button>
-                                <p class="description">Enter a Facebook event URL (or other event page URL) and click "Fetch Event Data" to automatically fill in the details below.</p>
-                                <div id="huapai_fetch_status"></div>
-                            </td>
-                        </tr>
-                        <tr>
                             <th scope="row"><label for="event_title">Event Title *</label></th>
                             <td><input type="text" name="event_title" id="event_title" class="regular-text" 
-                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['title']) : ''; ?>" required></td>
+                                       value="<?php echo esc_attr($form_title); ?>" required></td>
                         </tr>
                         <tr>
                             <th scope="row"><label for="event_content">Event Description</label></th>
                             <td>
                                 <?php 
-                                wp_editor($duplicate_data ? $duplicate_data['content'] : '', 'event_content', array(
+                                wp_editor($form_content, 'event_content', array(
                                     'textarea_name' => 'event_content',
                                     'media_buttons' => false,
                                     'textarea_rows' => 5,
@@ -311,28 +264,63 @@ function huapai_events_admin_page() {
                         </tr>
                         <tr>
                             <th scope="row"><label for="event_date">Event Date *</label></th>
-                            <td><input type="datetime-local" name="event_date" id="event_date" required></td>
+                            <td><input type="date" name="event_date" id="event_date" value="<?php echo esc_attr($form_date); ?>" required></td>
                         </tr>
                         <tr>
-                            <th scope="row"><label for="featured_image">Featured Image URL</label></th>
+                            <th scope="row"><label for="event_time">Event Time *</label></th>
+                            <td>
+                                <input type="time" name="event_time" id="event_time" value="<?php echo esc_attr($form_time); ?>" required>
+                                <p class="description">Defaults to 3:00 PM</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="featured_image">Featured Image</label></th>
                             <td>
                                 <input type="url" name="featured_image" id="featured_image" class="regular-text" 
-                                       value="<?php echo $duplicate_data ? esc_attr($duplicate_data['featured_image']) : ''; ?>"
-                                       placeholder="https://...">
-                                <p class="description">Direct URL to the event image</p>
+                                       value="<?php echo esc_attr($form_image); ?>" placeholder="https://...">
+                                <button type="button" class="button" id="upload_image_button">Select from Media Library</button>
+                                <p class="description">Choose an image from the media library or enter a URL</p>
+                                <div id="image_preview_container" style="margin-top: 10px;">
+                                    <?php if ($form_image): ?>
+                                        <img src="<?php echo esc_url($form_image); ?>" style="max-width: 200px; height: auto; display: block;">
+                                    <?php endif; ?>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row"><label for="fb_event_url">Facebook Event URL</label></th>
+                            <td>
+                                <input type="url" name="fb_event_url" id="fb_event_url" class="regular-text" 
+                                       value="<?php echo esc_attr($form_fb_url); ?>" placeholder="https://facebook.com/events/...">
                             </td>
                         </tr>
                     </table>
                     
                     <p class="submit">
-                        <input type="submit" name="huapai_add_event" id="submit" class="button button-primary" value="Add Event">
+                        <input type="submit" name="huapai_save_event" id="submit" class="button button-primary" value="<?php echo esc_attr($form_button_text); ?>">
+                        <?php if ($edit_event): ?>
+                            <a href="<?php echo admin_url('admin.php?page=huapai-events'); ?>" class="button">Cancel</a>
+                        <?php endif; ?>
                     </p>
                 </form>
                 
                 <h2>All Events</h2>
+                <div style="margin-bottom: 15px;">
+                    <form method="get" action="">
+                        <input type="hidden" name="page" value="huapai-events">
+                        <input type="text" name="search" id="event_search" value="<?php echo esc_attr($search_query); ?>" placeholder="Search events..." style="width: 300px;">
+                        <input type="submit" class="button" value="Search">
+                        <?php if (!empty($search_query)): ?>
+                            <a href="<?php echo admin_url('admin.php?page=huapai-events'); ?>" class="button">Clear Search</a>
+                        <?php endif; ?>
+                    </form>
+                </div>
                 <p><strong>Shortcode:</strong> Use <code>[huapai_events]</code> to display upcoming events on any page or post.</p>
                 
-                <?php if ($all_events): ?>
+                <?php if ($events): ?>
+                    <?php if (!empty($search_query)): ?>
+                        <p><em>Found <?php echo count($events); ?> event(s) matching "<?php echo esc_html($search_query); ?>"</em></p>
+                    <?php endif; ?>
                     <table class="wp-list-table widefat fixed striped">
                         <thead>
                             <tr>
@@ -345,7 +333,7 @@ function huapai_events_admin_page() {
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($all_events as $event): ?>
+                            <?php foreach ($events as $event): ?>
                                 <tr>
                                     <td><?php echo esc_html($event->id); ?></td>
                                     <td><?php echo esc_html($event->title); ?></td>
@@ -365,6 +353,8 @@ function huapai_events_admin_page() {
                                         <?php endif; ?>
                                     </td>
                                     <td>
+                                        <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=edit&edit_id=' . $event->id), 'huapai_edit_event_' . $event->id); ?>" 
+                                           class="button button-small">Edit</a>
                                         <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
                                            class="button button-small">Duplicate</a>
                                         <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=delete&event_id=' . $event->id), 'huapai_delete_event_' . $event->id); ?>" 
@@ -376,7 +366,7 @@ function huapai_events_admin_page() {
                         </tbody>
                     </table>
                 <?php else: ?>
-                    <p>No events found. Add your first event above!</p>
+                    <p>No events found. <?php echo !empty($search_query) ? 'Try a different search term.' : 'Add your first event above!'; ?></p>
                 <?php endif; ?>
             </div>
             
@@ -399,8 +389,8 @@ function huapai_events_admin_page() {
                                             <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
                                         </div>
                                         <div class="huapai-sidebar-event-actions">
-                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
-                                               class="button button-small">Duplicate</a>
+                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=edit&edit_id=' . $event->id), 'huapai_edit_event_' . $event->id); ?>" 
+                                               class="button button-small">Edit</a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -420,8 +410,8 @@ function huapai_events_admin_page() {
                                             <?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($event->event_date))); ?>
                                         </div>
                                         <div class="huapai-sidebar-event-actions">
-                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=duplicate&event_id=' . $event->id), 'huapai_duplicate_event_' . $event->id); ?>" 
-                                               class="button button-small">Duplicate</a>
+                                            <a href="<?php echo wp_nonce_url(admin_url('admin.php?page=huapai-events&action=edit&edit_id=' . $event->id), 'huapai_edit_event_' . $event->id); ?>" 
+                                               class="button button-small">Edit</a>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>
@@ -532,14 +522,9 @@ add_action('wp_enqueue_scripts', 'huapai_events_enqueue_styles');
  */
 function huapai_events_admin_styles($hook) {
     if ($hook === 'toplevel_page_huapai-events') {
+        wp_enqueue_media(); // Enqueue WordPress media library
         wp_enqueue_style('huapai-events-admin-style', HUAPAI_EVENTS_PLUGIN_URL . 'assets/css/huapai-events-admin.css', array(), HUAPAI_EVENTS_VERSION);
         wp_enqueue_script('huapai-events-admin-script', HUAPAI_EVENTS_PLUGIN_URL . 'assets/js/huapai-events-admin.js', array('jquery'), HUAPAI_EVENTS_VERSION, true);
-        
-        // Pass AJAX URL and nonce to JavaScript
-        wp_localize_script('huapai-events-admin-script', 'huapaiEventsAdmin', array(
-            'ajaxurl' => admin_url('admin-ajax.php'),
-            'nonce' => wp_create_nonce('huapai_fetch_url_nonce')
-        ));
     }
 }
 add_action('admin_enqueue_scripts', 'huapai_events_admin_styles');
