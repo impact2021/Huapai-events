@@ -14,11 +14,17 @@
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.3s ease;
-    position: relative;
 }
 
 .huapai-event-item:hover {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* First Row - Title (100% width) */
+.huapai-event-title-row {
+    width: 100%;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .huapai-event-title {
@@ -28,35 +34,40 @@
     font-weight: 600;
     color: #333;
     line-height: 1.3;
-    background: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
 }
 
-.huapai-event-columns {
+/* Second Row - Two Columns */
+.huapai-event-content-row {
     display: flex;
     flex-direction: row;
     align-items: stretch;
 }
 
+/* Left Column - Featured Image with Box Shadow */
 .huapai-event-image {
     flex: 0 0 300px;
     width: 300px;
     overflow: hidden;
     background-color: #f5f5f5;
+    padding: 20px;
 }
 
 .huapai-event-image img {
     width: 100%;
-    height: 100%;
+    height: auto;
     display: block;
-    object-fit: contain;
+    object-fit: cover;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
 }
 
+/* Right Column - Date, Description, and Facebook Link */
 .huapai-event-content {
     flex: 1;
     padding: 25px 30px;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .huapai-event-date {
@@ -108,11 +119,10 @@
     border-color: #ccc;
 }
 
+/* Facebook Link - Floating Right */
 .huapai-event-link {
-    padding: 15px 25px;
-    text-align: right;
-    border-top: 1px solid #e0e0e0;
-    background: #f8f9fa;
+    float: right;
+    margin-top: 10px;
 }
 
 .huapai-event-button {
@@ -146,14 +156,19 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .huapai-event-columns {
+    .huapai-event-content-row {
         flex-direction: column;
     }
     
     .huapai-event-image {
         flex: 0 0 auto;
         width: 100%;
+        padding: 15px;
+    }
+    
+    .huapai-event-image img {
         max-height: 250px;
+        object-fit: contain;
     }
     
     .huapai-event-title {
@@ -175,7 +190,9 @@
     }
     
     .huapai-event-link {
-        padding: 12px 15px;
+        float: none;
+        text-align: center;
+        margin-top: 15px;
     }
     
     .huapai-event-button {
