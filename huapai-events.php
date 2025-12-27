@@ -199,7 +199,7 @@ function huapai_events_admin_page() {
     if (isset($_GET['action']) && $_GET['action'] === 'duplicate' && isset($_GET['event_id']) && check_admin_referer('huapai_duplicate_event_' . intval($_GET['event_id']))) {
         $event_id = intval($_GET['event_id']);
         // Note: $table_name is safe - constructed from $wpdb->prefix
-        $event = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $event_id));
+        $event = $wpdb->get_row($wpdb->prepare("SELECT title, content, featured_image, fb_event_url FROM $table_name WHERE id = %d", $event_id));
         
         if ($event) {
             // Store the event data in a transient for the form to pick up
@@ -253,7 +253,7 @@ function huapai_events_admin_page() {
     
     // Get all events
     // Note: $table_name is safe - constructed from $wpdb->prefix
-    $all_events = $wpdb->get_results("SELECT * FROM $table_name ORDER BY event_date DESC");
+    $all_events = $wpdb->get_results("SELECT id, title, content, event_date, featured_image, fb_event_url FROM $table_name ORDER BY event_date DESC");
     
     // Separate into upcoming and past events
     $current_time = current_time('mysql');

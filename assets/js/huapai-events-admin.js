@@ -74,7 +74,8 @@ jQuery(document).ready(function($) {
                         // Parse the ISO string and extract date components to avoid timezone issues
                         try {
                             // First, try to parse as ISO string and extract components directly
-                            var isoMatch = data.date.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+                            // Pattern handles optional seconds and timezone information
+                            var isoMatch = data.date.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?(?:Z|[+-]\d{2}:\d{2})?/);
                             if (isoMatch) {
                                 // Use the date components from the ISO string directly
                                 var datetimeLocal = isoMatch[1] + '-' + isoMatch[2] + '-' + isoMatch[3] + 'T' + isoMatch[4] + ':' + isoMatch[5];
