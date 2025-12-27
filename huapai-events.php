@@ -69,6 +69,11 @@ function huapai_events_admin_page() {
     global $wpdb;
     $table_name = $wpdb->prefix . 'huapai_events';
     
+    // Show update success message if redirected after update
+    if (isset($_GET['updated']) && $_GET['updated'] === '1') {
+        echo '<div class="notice notice-success"><p>Event updated successfully!</p></div>';
+    }
+    
     // Get edit event ID if present
     $edit_event_id = isset($_GET['edit_id']) ? intval($_GET['edit_id']) : 0;
     $edit_event = null;
@@ -129,9 +134,9 @@ function huapai_events_admin_page() {
                     array('%s', '%s', '%s', '%s', '%s'),
                     array('%d')
                 );
-                echo '<div class="notice notice-success"><p>Event updated successfully!</p></div>';
                 // Redirect to clear the edit parameters
-                echo '<script>window.location.href = "' . admin_url('admin.php?page=huapai-events') . '";</script>';
+                wp_safe_redirect(admin_url('admin.php?page=huapai-events&updated=1'));
+                exit;
             } else {
                 // Insert new event
                 $wpdb->insert(

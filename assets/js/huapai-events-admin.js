@@ -40,8 +40,12 @@ jQuery(document).ready(function($) {
             // Set the URL in the input field
             $('#featured_image').val(attachment.url);
             
-            // Update the preview
-            $('#image_preview_container').html('<img src="' + attachment.url + '" style="max-width: 200px; height: auto; display: block;">');
+            // Update the preview - create elements safely to avoid XSS
+            var img = $('<img>').attr({
+                'src': attachment.url,
+                'style': 'max-width: 200px; height: auto; display: block;'
+            });
+            $('#image_preview_container').empty().append(img);
         });
         
         // Open the uploader
@@ -52,9 +56,14 @@ jQuery(document).ready(function($) {
     $('#featured_image').on('change', function() {
         var url = $(this).val();
         if (url) {
-            $('#image_preview_container').html('<img src="' + url + '" style="max-width: 200px; height: auto; display: block;">');
+            // Create elements safely to avoid XSS
+            var img = $('<img>').attr({
+                'src': url,
+                'style': 'max-width: 200px; height: auto; display: block;'
+            });
+            $('#image_preview_container').empty().append(img);
         } else {
-            $('#image_preview_container').html('');
+            $('#image_preview_container').empty();
         }
     });
 });
