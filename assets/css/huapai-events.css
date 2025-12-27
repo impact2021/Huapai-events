@@ -14,6 +14,7 @@
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: box-shadow 0.3s ease;
+    position: relative;
 }
 
 .huapai-event-item:hover {
@@ -56,7 +57,7 @@
     width: 100%;
     height: auto;
     display: block;
-    object-fit: cover;
+    object-fit: contain;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     border-radius: 4px;
 }
@@ -119,9 +120,9 @@
     border-color: #ccc;
 }
 
-/* Facebook Link - Floating Right */
+/* Facebook Link - Positioned on the right */
 .huapai-event-link {
-    float: right;
+    align-self: flex-end;
     margin-top: 10px;
 }
 
@@ -190,7 +191,7 @@
     }
     
     .huapai-event-link {
-        float: none;
+        align-self: center;
         text-align: center;
         margin-top: 15px;
     }
