@@ -1,4 +1,17 @@
 jQuery(document).ready(function($) {
+    // Handle tab switching
+    $('.huapai-tab-button').on('click', function() {
+        var tab = $(this).data('tab');
+        
+        // Update button states
+        $('.huapai-tab-button').removeClass('active');
+        $(this).addClass('active');
+        
+        // Update content visibility
+        $('.huapai-tab-content').removeClass('active');
+        $('#huapai-tab-' + tab).addClass('active');
+    });
+    
     // Handle fetch event data button click
     $('#huapai_fetch_event_data').on('click', function(e) {
         e.preventDefault();
@@ -58,18 +71,26 @@ jQuery(document).ready(function($) {
                     
                     if (data.date) {
                         // Convert ISO date to datetime-local format
-                        // Handle timezone properly by using the local time from the ISO string
+                        // Parse the ISO string and extract date components to avoid timezone issues
                         try {
-                            var date = new Date(data.date);
-                            if (!isNaN(date.getTime())) {
-                                // Format to datetime-local (YYYY-MM-DDTHH:MM)
-                                var year = date.getFullYear();
-                                var month = String(date.getMonth() + 1).padStart(2, '0');
-                                var day = String(date.getDate()).padStart(2, '0');
-                                var hours = String(date.getHours()).padStart(2, '0');
-                                var minutes = String(date.getMinutes()).padStart(2, '0');
-                                var datetimeLocal = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+                            // First, try to parse as ISO string and extract components directly
+                            var isoMatch = data.date.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+                            if (isoMatch) {
+                                // Use the date components from the ISO string directly
+                                var datetimeLocal = isoMatch[1] + '-' + isoMatch[2] + '-' + isoMatch[3] + 'T' + isoMatch[4] + ':' + isoMatch[5];
                                 $('#event_date').val(datetimeLocal);
+                            } else {
+                                // Fallback: parse as Date and use UTC methods to avoid timezone shift
+                                var date = new Date(data.date);
+                                if (!isNaN(date.getTime())) {
+                                    var year = date.getUTCFullYear();
+                                    var month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                                    var day = String(date.getUTCDate()).padStart(2, '0');
+                                    var hours = String(date.getUTCHours()).padStart(2, '0');
+                                    var minutes = String(date.getUTCMinutes()).padStart(2, '0');
+                                    var datetimeLocal = year + '-' + month + '-' + day + 'T' + hours + ':' + minutes;
+                                    $('#event_date').val(datetimeLocal);
+                                }
                             }
                         } catch (e) {
                             // If date parsing fails, just skip setting the date
